@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Composition Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin: auto;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:active {
+            background-color: #3e8e41;
+        }
+
+        #map {
+            height: 300px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .about-us {
+            background-color: #008CBA;
+        }
+
+        .about-us:hover {
+            background-color: #007bb5;
+        }
+
+        .about-us, .why-important {
+            width: 100%;
+            display: inline-block;
+            margin: 10px 0;
+        }
+
+        .about-us, .why-important {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Air Composition Monitor</h1>
+        <p>Welcome to the Air Composition Monitor. Please search for a location and get the gas concentration details.</p>
+
+    
+        <input type="text" id="searchInput" placeholder="Search for a place..." />
+        <button onclick="searchLocation()">Search</button>
+
+        
+        <button onclick="readAloud()">Read Aloud</button>
+        <button onclick="stopReading()">Stop Reading</button>
+
+    
+        <button class="about-us" onclick="showAboutUs()">About Us</button>
+
+        
+        <button class="why-important" onclick="showWhyImportant()">Why Is It Important?</button>
+
+        
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+   
+        var map = L.map('map').setView([20.5937, 78.9629], 5); 
+
+       
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        
+        var gasConcentrationData = {
+            "Bangalore": { CO2: '350 ppm', O2: '21%', Methane: '0.02%' },
+            "Mysore": { CO2: '340 ppm', O2: '20.9%', Methane: '0.015%' },
+            "Kerala": { CO2: '360 ppm', O2: '21.2%', Methane: '0.03%' },
+            "USA": { CO2: '400 ppm', O2: '21%', Methane: '0.03%' },
+            "Norway": { CO2: '380 ppm', O2: '21.1%', Methane: '0.02%' },
+            "Sydney": { CO2: '370 ppm', O2: '21.1%', Methane: '0.025%' },
+            "Patna": { CO2: '355 ppm', O2: '21.05%', Methane: '0.02%' },
+            "Goa": { CO2: '340 ppm', O2: '21.1%', Methane: '0.015%' },
+            "Dayananda Sagar University": { CO2: '365 ppm', O2: '21%', Methane: '0.02%' },
+            "Vijayapur": { CO2: '355 ppm', O2: '21.05%', Methane: '0.025%' },
+            "Harohalli": { CO2: '355 ppm', O2: '21.1%', Methane: '0.02%' },
+            "Iceland": { CO2: '370 ppm', O2: '21%', Methane: '0.025%' },
+            "Karachi": { CO2: '360 ppm', O2: '21.2%', Methane: '0.02%' },
+            "Delhi": { CO2: '375 ppm', O2: '21.05%', Methane: '0.03%' }
+        };
+
+        
+        function searchLocation() {
+            var searchQuery = document.getElementById('searchInput').value;
+            if (searchQuery.trim() === "") {
+                alert("Please enter a valid location.");
+                return;
+            }
+
+            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${searchQuery}&addressdetails=1`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        var location = data[0];
+                        var lat = location.lat;
+                        var lon = location.lon;
+                        var name = location.display_name;
+
+                        
+                        map.setView([lat, lon], 10);
+
+                        
+                        var concentrationText = getGasConcentration(name);
+                        L.marker([lat, lon]).addTo(map)
+                            .bindPopup(`<b>${name}</b><br><strong>CO2:</strong> ${concentrationText.CO2}<br><strong>O2:</strong> ${concentrationText.O2}<br><strong>Methane:</strong> ${concentrationText.Methane}`)
+                            .openPopup();
+
+                        speakText(`Location found: ${name}. CO2 concentration is ${concentrationText.CO2}, Methane concentration is ${concentrationText.Methane}, and Oxygen concentration is ${concentrationText.O2}.`);
+                    } else {
+                        alert("Location not found. Please try again.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching location data:", error);
+                    alert("Error fetching location data. Please try again.");
+                });
+        }
+
+      
+        function getGasConcentration(locationName) {
+         
+            var normalizedLocationName = locationName.toLowerCase();
+
+            for (var key in gasConcentrationData) {
+                if (normalizedLocationName.includes(key.toLowerCase())) {
+                    return gasConcentrationData[key]; 
+                }
+            }
+
+            return { CO2: 'Unknown', O2: 'Unknown', Methane: 'Unknown' };
+        }
+
+        function speakText(text) {
+            let speechSynthesis = window.speechSynthesis;
+            let speech = new SpeechSynthesisUtterance(text);
+            speech.lang = "en-US";
+            speechSynthesis.speak(speech);
+        }
+
+        function readAloud() {
+            let statusText = "No location selected. Please search for a location.";
+            speakText(statusText);
+        }
+
+       
+        function stopReading() {
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+
+        function showAboutUs() {
+            alert("Gas Detection System\nDeveloped by: Akshata, Bhavana, Bhuvaneshwari, Diya\nContact: your.email@example.com");
+        }
+
+        function showWhyImportant() {
+            alert("Gas detection is important for ensuring safety in areas where harmful gases may be present. This system helps in monitoring gas concentrations and identifying potential hazards.");
+        }
+    </script>
+</body>
+</html>
